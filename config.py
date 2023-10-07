@@ -26,7 +26,7 @@
 
 from libqtile import qtile
 from libqtile import bar, layout, widget, hook
-from libqtile.config import Click, Drag, Group, Key, Match, Screen
+from libqtile.config import Click, Drag, Group, Key, Match, Screen, ScratchPad, DropDown
 from libqtile.backend.wayland import InputConfig
 from libqtile.lazy import lazy
 from libqtile.core.manager import Qtile
@@ -36,13 +36,13 @@ from libqtile.log_utils import logger
 # import api  # not used but a necessary import
 # from frankentile.auto_desk import *  # auto_desk_init
 # from frankentile.discord import *  # run_discord_bot, CLIENT
-from frankentile import discord, auto_desk
+from frankentile import WALLPAPER_PATH, discord_log, auto_desk, web
 import os
 import netifaces
 from qtile_extras import widget as extras
-from wmcompanion import use, on
-from wmcompanion.modules.notifications import Notify
-from wmcompanion.events.network import NetworkConnectionStatus
+# from wmcompanion import use, on
+# from wmcompanion.modules.notifications import Notify
+# from wmcompanion.events.network import NetworkConnectionStatus
 
 
 HOME = os.path.expanduser('~/')
@@ -149,21 +149,21 @@ def lazy_sh(qtile, app):
 
 
 # @lazy.function
-def go_to_group(name: str):
-    def _inner(qtile):
-        # logger.error("calling _inner")
-        if len(qtile.screens) == 1:
-            qtile.groups_map[name].cmd_toscreen()
-            return
-
-        if name in '1234567':
-            qtile.focus_screen(0)
-            qtile.groups_map[name].cmd_toscreen()
-        else:
-            qtile.focus_screen(1)
-            qtile.groups_map[name].cmd_toscreen()
-
-    return _inner
+# def go_to_group(name: str):
+#     def _inner(qtile):
+#         # logger.error("calling _inner")
+#         if len(qtile.screens) == 1:
+#             qtile.groups_map[name].cmd_toscreen()
+#             return
+#
+#         if name in '1234567':
+#             qtile.focus_screen(0)
+#             qtile.groups_map[name].cmd_toscreen()
+#         else:
+#             qtile.focus_screen(1)
+#             qtile.groups_map[name].cmd_toscreen()
+#
+#     return _inner
 
 
 ######################
@@ -193,6 +193,9 @@ keys = [
         desc="Move window to the right"),
     Key([mod, "shift"], "Down", lazy.layout.shuffle_down(), desc="Move window down"),
     Key([mod, "shift"], "Up", lazy.layout.shuffle_up(), desc="Move window up"),
+    # shift monitors
+    Key([mod, "shift"], 'Left', lazy.next_screen(), desc='Next monitor'),
+    Key([mod, "shift"], 'Right', lazy.prev_screen(), desc='Previous monitor'),
     # Grow windows. If current window is on the edge of screen and direction
     # will be to screen edge - window would shrink.
     Key([mod, "control"], "Left", lazy.layout.grow_left(),
@@ -202,7 +205,7 @@ keys = [
     Key([mod, "control"], "Down", lazy.layout.grow_down(), desc="Grow window down"),
     Key([mod, "control"], "Up", lazy.layout.grow_up(), desc="Grow window up"),
     Key([mod], "n", lazy.layout.normalize(), desc="Reset all window sizes"),
-    Key([mod, "control"], "r", lazy.reload_config(), desc="Reload the config"),
+    Key([mod, "control"], "r", lazy.reload_config(), desc="reload the config"),
     # Toggle between different layouts as defined below
     Key([mod], "Tab", lazy.next_layout(), desc="Toggle between layouts"),
     # Key([mod, "control"], "q", lazy.shutdown(), desc="Shutdown Qtile"),
@@ -260,6 +263,10 @@ keys = [
     Key([mod], "l", lazy.spawn("rofi -modi 'Layouts':'~/.local/bin/rofi-auto-desk' -show 'Layouts' -drun-display-format ' -> {name}'"),
         desc="opens layout selector"),
 
+    # scratchpads
+    Key([mod], "g", lazy.group['scratchpad'].dropdown_toggle('bpytop')),
+    Key([mod], "c", lazy.group['scratchpad'].dropdown_toggle('arsenal')),
+
     # Media/fn-keys stuff
     Key([], "XF86AudioRaiseVolume", lazy.function(lambda qtile: os.system(
         'bash ~/.config/system_scripts/volume up')), desc="Raise the volume"),
@@ -301,8 +308,8 @@ for i in groups:
             Key(
                 [mod],
                 k,
-                # lazy.group[i.name].toscreen(),
-                lazy.function(go_to_group(i.name)),
+                lazy.group[i.name].toscreen(),
+                # lazy.function(go_to_group(i.name)),
                 desc="Switch to group {}".format(i.name),
             ),
             # mod1 + shift + letter of group = move focused window to group
@@ -312,6 +319,20 @@ for i in groups:
     )
 
 groups.append(Group("hidden"))
+groups.append(Group("obs"))
+groups.append(
+    ScratchPad(
+        "scratchpad", [
+            # define another terminal exclusively for ``qtile shell` at different position
+            DropDown("bpytop", f"{terminal} -t 'BpyTOP' -e bpytop",
+                     x=0.1, y=0.1, width=0.8, height=0.8, opacity=0.75,
+                     on_focus_lost_hide=True),
+            DropDown("arsenal", f"{terminal} -t 'arsenal' -e arsenal -x",
+                     x=0.025, y=0.05, width=0.95, height=0.80, opacity=0.8,
+                     on_focus_lost_hide=False) 
+        ]
+    )
+)
 
 layouts = [
     # layout.Columns(border_focus_stack=["#d75f5f", "#8f3d3d"], border_width=4),
@@ -368,7 +389,8 @@ for face in netifaces.interfaces():
 # wallpaper = '~/Pictures/backgrounds/catppuccin/Street.jpg'
 # wallpaper = '~/Pictures/backgrounds/catppuccin/spooky_spill.jpg'
 
-wallpaper = discord.WALLPAPER_PATH
+wallpaper = WALLPAPER_PATH
+
 # wallpaper = '~/.config/qtile/wallpapers/cat_leaves.png'
 
 # wallpaper = '~/.config/qtile/wallpapers/spooky_spill.jpg'
@@ -438,7 +460,7 @@ dgroups_key_binder = None
 dgroups_app_rules = []  # type: list
 follow_mouse_focus = True
 bring_front_click = False
-cursor_warp = False
+cursor_warp = True
 floating_layout = layout.Floating(
     float_rules=[
         # Run the utility of `xprop` to see the wm class and name of an X client.
@@ -450,6 +472,7 @@ floating_layout = layout.Floating(
         Match(wm_class="matplotlib"),  # matplotlib plots
         Match(title="branchdialog"),  # gitk
         Match(title="pinentry"),  # GPG key password entry
+        # TODO: add arduino here
     ]
 )
 # auto_fullscreen = False
@@ -523,6 +546,7 @@ def autostart():
 #             # for window in windows:
 #             #     window.togroup("hidden")
 
+
 @hook.subscribe.startup_once
 def greet_user():
     """notifies the user of the batery level when they login"""
@@ -562,14 +586,17 @@ def reload_config(randr_event):
         return False
 
 
+
 @hook.subscribe.startup_once
 async def autorandr():
     """autorandrs on start"""
-    # import subprocess 
+    import subprocess 
 
     # subprocess.Popen(['autorandr -c'])
     if qtile.core.name == "x11":
-        os.system("autorandr -c")
+        subprocess.Popen(['autorandr', '-c'])
+        # os.system("autorandr -c")
+    logger.warning("autorandr autorandred")
 
 
 def make_fullscreen(target, client):
@@ -593,18 +620,20 @@ def make_fullscreen(target, client):
 #     """
 #     make_fullscreen("proxmox-nativefier-0d5e90", client)
 
-# TODO: uncomment bellow to reactivate discord bot
 @hook.subscribe.startup_once
 def start_discord_bot():
     """inits the discord bot"""
-    discord.init()
+    logger.warning("discord bot startup hook called")
+    discord_log.init()
+    logger.warning("discord bot started")
 
 
 @hook.subscribe.startup_once
 def start_auto_desk_api():
     """initializes the auto_desk api"""
+    logger.warning("auto_desk startup hook called")
     auto_desk.init()
-
+    logger.warning("auto_desk started")
 
 
 @hook.subscribe.client_new
@@ -680,11 +709,11 @@ def add_screens_x():
 # main function #
 #################
 
-@hook.subscribe.startup_once
-def main():
-    logger.warning("main called")
-    lazy.info()
-    logger.info("info test")
+# @hook.subscribe.startup_once
+# def main():
+    # logger.warning("main called")
+    # lazy.info()
+    # logger.info("info test")
 
 
 #########
@@ -694,23 +723,10 @@ def main():
 if __name__ == "__main__":
     pass
     # TODO: add doctest.testmod stuff
-    from frankentile.discord import start_discord_bot, stop_discord_bot
-    logger.info("info log test")
-    # handles = run_discord_bot()
-    start_discord_bot()
-    print("returned")
-   
-    import time
-    import tqdm
-    import asyncio
-
-    for i in tqdm.tqdm(range(60)):
-        time.sleep(1)
-
-    asyncio.run(stop_discord_bot())
 else:
     try:
         if qtile.core.name == "x11":
-            add_screens_x()     
+            add_screens_x()
+        logger.debug("end of configs")
     except AttributeError:
         pass
