@@ -33,9 +33,17 @@ from libqtile.core.manager import Qtile
 # from gi.repository import Notify
 from logger import Logger as FuncLog
 from libqtile.log_utils import logger
-import api  # not used but a necessary import
+# import api  # not used but a necessary import
+# from frankentile.auto_desk import *  # auto_desk_init
+# from frankentile.discord import *  # run_discord_bot, CLIENT
+from frankentile import discord, auto_desk
 import os
 import netifaces
+from qtile_extras import widget as extras
+from wmcompanion import use, on
+from wmcompanion.modules.notifications import Notify
+from wmcompanion.events.network import NetworkConnectionStatus
+
 
 HOME = os.path.expanduser('~/')
 DEBUG = True
@@ -45,6 +53,7 @@ LOGGER = FuncLog(
     io_stream=None,
     log_file=HOME + ".local/share/qtile/qtile_user_funciton.log"
 )
+BOT_HANDLE = None
 
 
 ######################
@@ -213,9 +222,9 @@ keys = [
     # ),
 
     Key([mod], "Return", lazy.spawn(terminal), desc="Launch terminal"),
-    Key([mod], "e", lazy.spawn("codium"), desc="Open editor"),
-    # Key([mod], "d", lazy.spawn("autorandr -l default"),
-        # desc="Return to laptop mode"),
+    Key([mod], "e", lazy.spawn("code-oss"), desc="Open editor"),
+    Key([mod], "d", lazy.spawn("autorandr -l default"),
+        desc="Return to laptop mode"),
     Key([mod], "r", lazy.spawn(
         f"{HOME}.cargo/bin/auto-desk launch {HOME}Code/python/mimic3-speak/mimic3-speak_v3.py"), desc="Read the highlighted text"),
     Key([mod], "t", lazy.spawn("/usr/bin/rofi-bluetooth"),
@@ -248,6 +257,8 @@ keys = [
         desc="TOGLE CAPSLOCK (as you can see this is important)"),
     Key([mod, "shift"], "p", lazy.spawn(terminal + \
         f" -e {HOME}.local/bin/parufzf"), desc="TUI for paru"),
+    Key([mod], "l", lazy.spawn("rofi -modi 'Layouts':'~/.local/bin/rofi-auto-desk' -show 'Layouts' -drun-display-format ' -> {name}'"),
+        desc="opens layout selector"),
 
     # Media/fn-keys stuff
     Key([], "XF86AudioRaiseVolume", lazy.function(lambda qtile: os.system(
@@ -357,7 +368,9 @@ for face in netifaces.interfaces():
 # wallpaper = '~/Pictures/backgrounds/catppuccin/Street.jpg'
 # wallpaper = '~/Pictures/backgrounds/catppuccin/spooky_spill.jpg'
 
-wallpaper = '~/.config/qtile/wallpapers/cat_leaves.png'
+wallpaper = discord.WALLPAPER_PATH
+# wallpaper = '~/.config/qtile/wallpapers/cat_leaves.png'
+
 # wallpaper = '~/.config/qtile/wallpapers/spooky_spill.jpg'
 # wallpaper = "~/Code/git-repos/sway-dots/wallpapers/cyborg_gruv.png"
 
@@ -367,7 +380,7 @@ wp_mode = "fill"
 main_bar = bar.Bar(
     [
         widget.Spacer(length=10),
-        # widget.Pomodoro(num_pomodori=3),
+        widget.Pomodoro(num_pomodori=3),
         widget.GroupBox(highlight_method='block',
                         visible_groups=[
                             g.name for g in groups if g.name.isnumeric()],
@@ -379,16 +392,24 @@ main_bar = bar.Bar(
         widget.Spacer(),
         widget.Clock(format="%a %I:%M %p", foreground="#fab387"),
         widget.Spacer(),
+        # widget.Spacer(length=15),
+        # extras.Visualiser(cava_path="/usr/bin/cava"),
+        widget.Spacer(length=15),
         widget.GenPollText(func=motd, scroll=True, scroll_interval=.05,
                            scroll_clear=False, scroll_delay=3,
-                           update_interval=None, width=300,
+                           update_interval=None, width=400,
                            foreground="#fab387"),
         widget.Spacer(length=15),
         # widget.Systray(),
         widget.Spacer(length=15),
+        widget.Volume(fmt="Vol: {}", foreground="#fab387"),
+        widget.Spacer(length=15),
+        extras.UPowerWidget(),
         widget.Battery(
-            format='{char} {percent:2.0%} {watt:.2f} W', foreground="#fab387"),
+            # format='{char} {percent:2.0%} {watt:.2f} W', foreground="#fab387"),
+            format='{percent:2.0%}', foreground="#fab387"),
         # widget.QuickExit(),
+        # widget.Spacer(length=10),
         widget.Spacer(length=10),
     ],
     40,
@@ -399,7 +420,7 @@ main_bar = bar.Bar(
 screens = [
     Screen(
         top=main_bar,
-        wallpaper=wallpaper,  # '~/Pictures/backgrounds/Dragon.jpg',
+        wallpaper=wallpaper,
         wallpaper_mode=wp_mode,  # 'stretch',
     )
 ]
@@ -502,7 +523,6 @@ def autostart():
 #             # for window in windows:
 #             #     window.togroup("hidden")
 
-
 @hook.subscribe.startup_once
 def greet_user():
     """notifies the user of the batery level when they login"""
@@ -529,13 +549,13 @@ def reload_config(randr_event):
     reloads the configs when new monitors are activated.
     (for example by autorandr)
     """
-    import signal
+    from libqtile.command.client import InteractiveCommandClient as QtileClient
 
     # sends SIGUSR1 to qtile to restart it
     # side not: (why does python not have a dedicated signal sending function?)
     if get_n_mon() != len(screens):
         add_screens_x()
-        os.kill(os.getpid(), signal.SIGUSR1)
+        QtileClient().reload_config()
         # add_screens_x()
         return True
     else:
@@ -545,7 +565,7 @@ def reload_config(randr_event):
 @hook.subscribe.startup_once
 async def autorandr():
     """autorandrs on start"""
-    # import subprocess
+    # import subprocess 
 
     # subprocess.Popen(['autorandr -c'])
     if qtile.core.name == "x11":
@@ -572,6 +592,45 @@ def make_fullscreen(target, client):
 #     makes proxmox full screen always
 #     """
 #     make_fullscreen("proxmox-nativefier-0d5e90", client)
+
+# TODO: uncomment bellow to reactivate discord bot
+@hook.subscribe.startup_once
+def start_discord_bot():
+    """inits the discord bot"""
+    discord.init()
+
+
+@hook.subscribe.startup_once
+def start_auto_desk_api():
+    """initializes the auto_desk api"""
+    auto_desk.init()
+
+
+
+@hook.subscribe.client_new
+def floating_dialogs(window):
+    dialog = window.window.get_wm_type() == 'dialog'
+    transient = window.window.get_wm_transient_for()
+    if dialog or transient:
+        window.floating = True
+
+
+###############
+# wmcompanion #
+###############
+
+# @on(NetworkConnectionStatus, connection_name="Wired-Network")
+# @use(Notify)
+# async def network_status(status: dict, notify: Notify):
+#     msg = "connected" if status["connected"] else "disconnected"
+#     await notify(f"Wired network is now {msg}")
+#
+#
+# @on(NetworkConnectionStatus, connection_name="AirWest")
+# @use(Notify)
+# async def network_status(status: dict, notify: Notify):
+#     msg = "connected" if status["connected"] else "disconnected"
+#     await notify(f"Home WiFi is now {msg}")
 
 
 ##################
@@ -617,13 +676,41 @@ def add_screens_x():
     return (n_mon, n_screens, len(screens))
 
 
+#################
+# main function #
+#################
+
+@hook.subscribe.startup_once
+def main():
+    logger.warning("main called")
+    lazy.info()
+    logger.info("info test")
+
+
 #########
 # start #
 #########
 
 if __name__ == "__main__":
     pass
-    # add doctest.testmod stuff
+    # TODO: add doctest.testmod stuff
+    from frankentile.discord import start_discord_bot, stop_discord_bot
+    logger.info("info log test")
+    # handles = run_discord_bot()
+    start_discord_bot()
+    print("returned")
+   
+    import time
+    import tqdm
+    import asyncio
+
+    for i in tqdm.tqdm(range(60)):
+        time.sleep(1)
+
+    asyncio.run(stop_discord_bot())
 else:
-    if qtile.core.name == "x11":
-        add_screens_x()
+    try:
+        if qtile.core.name == "x11":
+            add_screens_x()     
+    except AttributeError:
+        pass

@@ -42,7 +42,7 @@ tmux -L bug-bounty new echo "nothing" &  # just to start a server running on a s
 nm-applet &  # needed for protonvpn to work
 
 # remap keys
-xmodmap ~/.xmodmaprc
+xmodmap ~/.xmodmaprc & 
 setxkbmap -option caps:super &
 # setxkbmap -option caps:ctrl_modifier &
 
@@ -56,10 +56,14 @@ numlockx on &
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 # bash ~/.config/bspwm/scripts/bg.sh ~/Pictures/backgrounds/animated/pixilated_animated_1.gif
 batsignal -w 15 -c 10 -d 7 -m 180 -D 'systemctl hibernate' -b &
-systemctl start --user desktop-automater &
+systemctl start --user auto-desk.service &
 systemctl restart --user greenclip &
 xss-lock -- betterlockscreen -l -q > /dev/null &
 mkdir -p /tmp/qtile/ & 
+python -m frankentile.web 10.42.69.3 & 
+python -m frankentile.discord_bot &
+doas nebula -config /etc/nebula/config.yml &
+wmcompanion & 
 # activate_monitors &
 # glava -d > /dev/null &
 # xcape -t 250 -e 'Super_L=Super_R|space' &
