@@ -229,7 +229,7 @@ keys = [
     Key([mod], "d", lazy.spawn("autorandr -l default"),
         desc="Return to laptop mode"),
     Key([mod], "r", lazy.spawn(
-        f"{HOME}.cargo/bin/auto-desk launch {HOME}Code/python/mimic3-speak/mimic3-speak_v3.py"), desc="Read the highlighted text"),
+        f"{HOME}Code/python/mimic3-speak/mimic3-speak_v3.py"), desc="Read the highlighted text"),
     Key([mod], "t", lazy.spawn("/usr/bin/rofi-bluetooth"),
         desc="Show bluetooth menu"),
     Key([mod], "w",
@@ -246,7 +246,7 @@ keys = [
         "rofi -show drun -drun-display-format \" -> {name}\""), desc="Show app launcher"),
     # Key([mod, "shift"], "p", lazy.spawn("alacritty -e parufzf"), desc="parufzf"),
     Key([mod, "shift"], "Return", lazy.spawn(
-        "pcmanfm-qt"), desc="Spawn file browser"),
+        "thunar"), desc="Spawn file browser"),
     Key([mod], "F12", lazy.spawn("rofi-wifi-menu"), desc="Show wifi menu"),
     Key([mod], "F11", lazy.spawn("/usr/bin/rofi-bluetooth"),
         desc="Show bluetooth menu"),
@@ -266,6 +266,7 @@ keys = [
     # scratchpads
     Key([mod], "g", lazy.group['scratchpad'].dropdown_toggle('bpytop')),
     Key([mod], "c", lazy.group['scratchpad'].dropdown_toggle('arsenal')),
+    Key([mod], "n", lazy.group['scratchpad'].dropdown_toggle('notes')),
 
     # Media/fn-keys stuff
     Key([], "XF86AudioRaiseVolume", lazy.function(lambda qtile: os.system(
@@ -318,6 +319,8 @@ for i in groups:
         ]
     )
 
+keys.append(Key([mod], "o", lazy.group["obs"].toscreen(), desc="Switches focus to the OBS group"))
+
 groups.append(Group("hidden"))
 groups.append(Group("obs"))
 groups.append(
@@ -329,7 +332,10 @@ groups.append(
                      on_focus_lost_hide=True),
             DropDown("arsenal", f"{terminal} -t 'arsenal' -e arsenal -x",
                      x=0.025, y=0.05, width=0.95, height=0.80, opacity=0.8,
-                     on_focus_lost_hide=False) 
+                     on_focus_lost_hide=False),
+            DropDown("notes", "typora", 
+                     x=0.1, y=0.1, width=0.8, height=0.8, opacity=0.9,
+                     on_focus_lost_hide=False),
         ]
     )
 )
@@ -349,7 +355,7 @@ layouts = [
         margin=6,
         # any larger and it will interfear with the pokedex fetch
         # program I use, on my 4:3 AR laptop screen.
-        ratio=0.56
+        ratio=0.6
     ),
     layout.MonadWide(
         border_focus="#f9e2af",  # "#D09D49",
@@ -357,13 +363,16 @@ layouts = [
         border_focus_stack=["#d75f5f", "#8f3d3d"],
         border_width=3,
         margin=6,
-        ratio=0.56
+        ratio=0.6
     ),
     # layout.RatioTile(),
     # layout.Tile(),
     # layout.TreeTab(),
     # layout.VerticalTile(),
-    # layout.Zoomy(),
+    layout.Zoomy(
+        margin=6,
+        columnwidth=300,
+    ),
 ]
 
 widget_defaults = dict(
