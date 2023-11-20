@@ -32,6 +32,10 @@ function radio-freq-set-up {
   bluetooth off &
 }
 
+function start-home-screen {
+  docker run -it -d -p 127.0.0.1:80:8080 -v ~/Code/git-repos/bento-next/config.ts:/usr/share/nginx/html/config.ts bento-next
+}
+
 # xrandr --dpi 160; xrandr --dpi 160 &
 super-user-set-up &
 radio-freq-set-up &
@@ -63,7 +67,8 @@ mkdir -p /tmp/qtile/ &
 python -m frankentile.web 10.42.69.3 & 
 python -m frankentile.discord_bot &
 doas nebula -config /etc/nebula/config.yml &
-wmcompanion & 
+wmcompanion &
+start-home-screen &
 # activate_monitors &
 # glava -d > /dev/null &
 # xcape -t 250 -e 'Super_L=Super_R|space' &

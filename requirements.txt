@@ -1,0 +1,4 @@
+netifaces
+dbus_next
+qtile_extras
+screeninfo
